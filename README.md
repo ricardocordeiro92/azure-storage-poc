@@ -1,14 +1,14 @@
 # Title
 
-Nest - Azure Storage Blob Poc (prova de conceito)
+Nest - Azure Storage Blob Poc (proof of concept)
 
 ## Description
 
-Este projeto trata-se de uma poc (prova de conceito) para implementação do gerenciamento de arquivos utilizando o Azure Blob Storage da Microsoft num ambiente em Nest e TypeScript.
+This project is a poc (proof of concept) to implement file management using Microsoft's Azure Blob Storage in a Nest and TypeScript environment.
 
 ## Prerequisite
 
-Necessário criar uma conta e um container no [Azure Microsoft](https://azure.microsoft.com/en-us/free/). E adicionar a string de conexão ao storage como variável de ambiente.
+You need to create an account and container on [Azure Microsoft](https://azure.microsoft.com/en-us/free/). And add the storage connection string and container name as environment variables.
 
 ## Installation
 
@@ -42,15 +42,7 @@ $ pnpm run test:e2e
 $ pnpm run test:cov
 ```
 
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
 ## Stay in touch
 
 - Author - [Ricardo Cordeiro](https://github.com/ricardocordeiro92)
 - documentation - [nestjs](https://nestjs.com/) / [azure-storage-blob](https://learn.microsoft.com/en-us/azure/storage/blobs//)
-
-## License
-
-Nest is [MIT licensed](LICENSE).
