@@ -35,11 +35,13 @@ describe('AzureBlobService', () => {
       uploadData: jest.fn(),
       download: jest.fn().mockResolvedValue({ readableStreamBody: jest.fn() }),
       deleteIfExists: jest.fn().mockResolvedValue({ succeeded: true }),
+      generateSasUrl: jest.fn().mockResolvedValue('any_url'),
     } as unknown as jest.Mocked<BlockBlobClient>;
 
     mockContainerClient = {
       exists: jest.fn().mockResolvedValue(true),
       create: jest.fn(),
+      listBlobsFlat: jest.fn().mockReturnValue([{ name: fileName }]),
       getBlockBlobClient: jest.fn().mockReturnValue(mockBlockBlobClient),
     } as unknown as jest.Mocked<ContainerClient>;
 
@@ -75,6 +77,48 @@ describe('AzureBlobService', () => {
       );
     });
 
+    it('should create container if it does not exist and return blob client', async () => {
+      const containerName = 'test-container';
+      const imageName = 'image.jpg';
+
+      mockContainerClient.exists.mockResolvedValue(false);
+
+      const result = await storageService.getBlobClient(
+        containerName,
+        imageName,
+      );
+
+      expect(result).toEqual(mockBlockBlobClient);
+      expect(mockBlobServiceClient.getContainerClient).toHaveBeenCalledWith(
+        containerName,
+      );
+      expect(mockContainerClient.exists).toHaveBeenCalled();
+      expect(mockContainerClient.create).toHaveBeenCalled();
+      expect(mockContainerClient.getBlockBlobClient).toHaveBeenCalledWith(
+        imageName,
+      );
+    });
+
+    it('should throw BadRequestException if blob client is undefined', async () => {
+      const containerName = 'test-container';
+      const imageName = 'image.jpg';
+
+      mockContainerClient.getBlockBlobClient.mockReturnValueOnce(undefined);
+
+      await expect(
+        storageService.getBlobClient(containerName, imageName),
+      ).rejects.toThrowError(BadRequestException);
+
+      expect(mockBlobServiceClient.getContainerClient).toHaveBeenCalledWith(
+        containerName,
+      );
+      expect(mockContainerClient.exists).toHaveBeenCalled();
+      expect(mockContainerClient.create).not.toHaveBeenCalled();
+      expect(mockContainerClient.getBlockBlobClient).toHaveBeenCalledWith(
+        imageName,
+      );
+    });
+
     it('should throw BadRequestException if error occurs during getBlobClient', async () => {
       const containerName = 'test-container';
       const imageName = 'image.jpg';
@@ -95,6 +139,7 @@ describe('AzureBlobService', () => {
       expect(result.message).toEqual('File uploaded successfully');
       expect(result.fileName).toContain('file.txt');
       expect(result.containerName).toEqual(containerName);
+      expect(result.url).toEqual('any_url');
       expect(mockBlobServiceClient.getContainerClient).toHaveBeenCalledWith(
         containerName,
       );
@@ -169,6 +214,80 @@ describe('AzureBlobService', () => {
       await expect(
         storageService.deleteFile(fileName, containerName),
       ).rejects.toThrowError(BadRequestException);
+    });
+  });
+
+  describe('generateTemporaryUrl', () => {
+    it('should generate temporary URL for the given file name and container', async () => {
+      const result = await storageService.generateTemporaryUrl(
+        fileName,
+        containerName,
+      );
+
+      expect(result).toEqual('any_url');
+      expect(mockBlobServiceClient.getContainerClient).toHaveBeenCalledWith(
+        containerName,
+      );
+      expect(mockContainerClient.getBlockBlobClient).toHaveBeenCalledWith(
+        fileName,
+      );
+      expect(mockBlockBlobClient.generateSasUrl).toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException if error occurs during generateTemporaryUrl', async () => {
+      const errorMessage = 'Failed to generate URL';
+      mockBlockBlobClient.generateSasUrl.mockRejectedValue(
+        new BadRequestException(errorMessage),
+      );
+
+      try {
+        await storageService.generateTemporaryUrl(fileName, containerName);
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        expect(error).toHaveProperty(
+          'message',
+          `Failed to generate temporary URL: ${errorMessage}.`,
+        );
+      }
+    });
+  });
+
+  describe('listFiles', () => {
+    it('should return list of files in container', async () => {
+      const result = await storageService.listFiles(containerName);
+
+      expect(result).toHaveLength(1);
+      expect(result).toStrictEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            fileName: fileName,
+            containerName,
+            message: `File ${fileName} listed successfully`,
+            url: 'any_url',
+          }),
+        ]),
+      );
+      expect(mockBlobServiceClient.getContainerClient).toHaveBeenCalledWith(
+        containerName,
+      );
+      expect(mockContainerClient.listBlobsFlat).toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException if error occurs during listFiles', async () => {
+      const errorMessage = 'List files failed';
+      mockContainerClient.listBlobsFlat.mockImplementationOnce(() => {
+        throw new BadRequestException(errorMessage);
+      });
+
+      try {
+        await storageService.listFiles(containerName);
+      } catch (error) {
+        expect(error).toBeInstanceOf(BadRequestException);
+        expect(error).toHaveProperty(
+          'message',
+          `Failed to list files: ${errorMessage}.`,
+        );
+      }
     });
   });
 });
