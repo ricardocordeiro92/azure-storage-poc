@@ -2,7 +2,6 @@ import {
   Controller,
   Delete,
   Get,
-  Param,
   Post,
   Query,
   Res,
@@ -11,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import * as mime from 'mime-types';
-import { UploadSuccessResponse } from 'src/azure-blob/dtos/uploadSuccessResponse';
+import { SuccessResponse } from 'src/azure-blob/dtos/successResponse';
 import { AzureBlobService } from '../../services/azure-blob.service';
 
 @Controller()
@@ -23,50 +22,57 @@ export class AzureBlobController {
   @UseInterceptors(FileInterceptor('myfile'))
   async upload(
     @UploadedFile() file: Express.Multer.File,
-  ): Promise<UploadSuccessResponse> {
+  ): Promise<SuccessResponse> {
     const uploadFile = await this.azureBlobService.uploadFile(
       file,
       this.containerName,
     );
+
     return uploadFile;
   }
 
   @Get('read-file')
-  async readFile(@Res() res, @Query('filename') filename): Promise<void> {
+  async readFile(@Res() res, @Query('fileName') fileName): Promise<void> {
     const file = await this.azureBlobService.getFile(
-      filename,
+      fileName,
       this.containerName,
     );
 
     return file.pipe(res);
   }
 
-  @Delete('delete/:filename')
-  async delete(@Param('filename') filename: string): Promise<string> {
+  @Delete('delete')
+  async delete(@Query('fileName') fileName: string): Promise<string> {
     const deleteFile = await this.azureBlobService.deleteFile(
-      filename,
+      fileName,
       this.containerName,
     );
+
     return deleteFile;
   }
 
   @Get('download-file')
   async downloadFile(
     @Res() res,
-    @Query('filename') filename: string,
+    @Query('fileName') fileName: string,
   ): Promise<void> {
     const file = await this.azureBlobService.getFile(
-      filename,
+      fileName,
       this.containerName,
     );
 
-    const fileExtension = filename.split('.').pop();
+    const fileExtension = fileName.split('.').pop();
 
     const contentType = mime.lookup(fileExtension);
 
     res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+    res.setHeader('Content-Disposition', `attachment; fileName=${fileName}`);
 
     return file.pipe(res);
+  }
+
+  @Get('listAll')
+  async listFiles(): Promise<SuccessResponse[]> {
+    return await this.azureBlobService.listFiles(this.containerName);
   }
 }
