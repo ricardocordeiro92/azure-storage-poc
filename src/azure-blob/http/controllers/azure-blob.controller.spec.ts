@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Response } from 'express';
-import { UploadSuccessResponse } from 'src/azure-blob/dtos/uploadSuccessResponse';
+import { SuccessResponse } from 'src/azure-blob/dtos/successResponse';
 import { AzureBlobService } from '../../services/azure-blob.service';
 import { AzureBlobController } from './azure-blob.controller';
 
@@ -39,10 +39,11 @@ describe('AzureBlobController', () => {
         originalname: fileName,
       } as Express.Multer.File;
 
-      const response: UploadSuccessResponse = {
+      const response: SuccessResponse = {
         message: 'File uploaded successfully',
         fileName: fileName,
         containerName: 'container-test',
+        url: 'any_url',
       };
 
       jest
@@ -88,6 +89,31 @@ describe('AzureBlobController', () => {
       await controller.downloadFile(res as Response, fileName);
 
       expect(readableStreamMock.pipe).toHaveBeenCalledWith(res);
+    });
+  });
+
+  describe('listAll', () => {
+    it('should list all files with successfully', async () => {
+      const response: SuccessResponse[] = [
+        {
+          message: `File ${fileName} listed successfully`,
+          fileName: fileName,
+          containerName: 'container-test',
+          url: 'any_url',
+        },
+        {
+          message: `File test2.jpg listed successfully`,
+          fileName: 'test2.jpg',
+          containerName: 'container-test',
+          url: 'any_url_2',
+        },
+      ];
+
+      jest.spyOn(azureBlobService, 'listFiles').mockResolvedValueOnce(response);
+
+      const files = await controller.listFiles();
+
+      expect(files).toEqual(response);
     });
   });
 });
